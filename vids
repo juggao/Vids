@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+# vids: query youtube
+# AO-2020
+#
+import sys
+import os
+from termcolor import colored
+from youtube_search import YoutubeSearch
+
+youtubeurl="https://youtube.com"
+
+def main():
+	argc = len(sys.argv)
+	ls=""
+	if argc == 1:
+		print("syt \"Some Name\" <maxresults>")
+		return
+	else:
+		ls = sys.argv[1]
+	maxresults=10
+	if argc == 3:
+	    maxresults = int(sys.argv[2])
+	print("max: " , maxresults)
+	print ("searching: " + ls, '\n')
+	results = YoutubeSearch(ls, maxresults).to_dict()
+#	print(results)
+	for l in results:
+		for n in l:
+			if (n == 'title'):
+				print(l[n])
+			if (n == 'link'):
+				print(colored(youtubeurl+l[n], 'blue'))
+		print('________')
+	print('--')
+
+if __name__ == "__main__":
+	main()
