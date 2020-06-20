@@ -5,32 +5,100 @@
 #
 import sys
 import os
+import time
 from termcolor import colored
 from youtube_search import YoutubeSearch
+import requests
+from bs4 import BeautifulSoup 
 
 youtubeurl="https://youtube.com"
+
+def get_soup(url):
+	"""open url and return BeautifulSoup object, or None if site does not exist"""
+	result = requests.get(url, {"User-Agent": "my bot 0.1"})
+	if result.status_code != 200: 
+		print("status_code: " + result.status_code)
+		return None
+	return BeautifulSoup(result.text, 'html.parser')
+
 
 def main():
 	argc = len(sys.argv)
 	ls=""
 	if argc == 1:
-		print("vids \"Some Name\" <maxresults>")
+		print("vids \"Some Name\" <maxresults> <i>")
 		return
 	else:
 		ls = sys.argv[1]
 	maxresults=10
-	if argc == 3:
+	info = 0
+	if argc >= 3:
 	    maxresults = int(sys.argv[2])
+	if argc >= 4:
+		if 'i' in sys.argv[3]:
+			info = 1
 	print("max: " , maxresults)
 	print ("searching: " + ls, '\n')
-	results = YoutubeSearch(ls, maxresults).to_dict()
-#	print(results)
+	try: 
+		results = YoutubeSearch(ls, maxresults).to_dict()
+	except Exception as x:
+		print(x)
+		return
+	if len(results)==0:
+		print("No results: try again")
+		return
 	for l in results:
 		for n in l:
 			if (n == 'title'):
 				print(l[n])
+
 			if (n == 'link'):
-				print(colored(youtubeurl+l[n], 'blue'))
+				url = youtubeurl+l[n]
+				print(colored(url, 'blue'))
+				if info==0:
+					continue			
+				d = {} # collect video info in dict
+				ok = 0
+				while ok==0:
+					#time.sleep(1)
+					try:
+						vsoup = get_soup(url) # now get video page and pull information from it				
+					except Exception as x:
+						print(x)
+						return
+					s = vsoup.find('strong', class_="watch-time-text")
+					if (s != None):
+						d['publication_date'] = s.text[len('Published on ')-1:]
+						ok = 1
+					else:	
+						continue
+
+					d['views'] = '-'
+					wv = vsoup.find('div', class_='watch-view-count')
+					if wv != None:
+						views = wv.text
+						d['views'] = ''.join(c for c in views if c in "0123456789")
+					
+					#d['description'] = vsoup.find('div',id='watch-description-text').text
+					#id = vsoup.find('meta', itemprop="videoId")['content']
+					#d['short_link'] = f'https://youtu.be/{id}'
+					likebutton = vsoup.find('button', class_="like-button-renderer-like-button")
+					d['likes'] = '-'
+					d['dislikes'] = '-'
+					if likebutton != None:
+						lb = likebutton.find('span',class_ = 'yt-uix-button-content')
+						if lb != None:
+							d['likes'] = lb.text
+					disbutton = vsoup.find('button',class_='like-button-renderer-dislike-button')
+					if disbutton != None:
+						db = disbutton.find('span',class_ = 'yt-uix-button-content')
+						if db != None:
+							d['dislikes'] = db.text
+        			
+					infoline= d['publication_date'] + ' | ' + d['views'] + ' | p ' + d['likes'] + '  n ' + d['dislikes'] 
+					print(colored(infoline, 'green'))
+				
+
 		print('________')
 
 if __name__ == "__main__":
